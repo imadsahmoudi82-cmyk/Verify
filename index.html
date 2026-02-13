@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة توثيق ONE 1</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0c29; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; color: white; padding: 20px; box-sizing: border-box; }
+        .admin-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); padding: 30px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        h2 { color: #a29bfe; margin-bottom: 20px; font-size: 22px; }
+        .input-group { margin-bottom: 15px; text-align: right; }
+        label { display: block; margin-bottom: 8px; font-size: 13px; color: #aaa; margin-right: 5px; }
+        input, select { width: 100%; padding: 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(162, 155, 254, 0.3); border-radius: 12px; outline: none; color: white; font-size: 15px; box-sizing: border-box; }
+        button { width: 100%; background: #6c5ce7; color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .user-frame { background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 15px; margin-top: 20px; display: none; align-items: center; gap: 15px; cursor: pointer; border: 1px solid rgba(162, 155, 254, 0.2); }
+        .user-frame img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+        .user-info { text-align: right; flex: 1; }
+        .user-info h4 { margin: 0; font-size: 15px; display: flex; align-items: center; gap: 5px; }
+        .verify-badge { color: #6c5ce7; font-size: 14px; }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .modal-content { background: #1a1a2e; width: 100%; max-width: 350px; border-radius: 25px; padding: 30px; text-align: center; border: 1px solid #333; position: relative; }
+        .modal-content img { width: 90px; height: 90px; border-radius: 50%; border: 3px solid #6c5ce7; margin-bottom: 15px; }
+        .stat-box { display: flex; justify-content: space-around; margin: 20px 0; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; }
+        .stat-item span { display: block; font-size: 18px; font-weight: bold; }
+        .btn-remove { background: #ff4757; margin-top: 20px; width: 100%; padding: 12px; border: none; border-radius: 12px; color: white; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="admin-card">
+        <h2>منصة التوثيق</h2>
+        <div class="input-group">
+            <label>بريد المستخدم</label>
+            <input type="email" id="userEmail" placeholder="example@mail.com">
+        </div>
+        <div class="input-group">
+            <label>مدة التوثيق</label>
+            <select id="duration">
+                <option value="permanent">دائم</option>
+                <option value="30m">30 دقيقة</option>
+                <option value="1h">ساعة</option>
+                <option value="3h">3 ساعات</option>
+                <option value="5h">5 ساعات</option>
+                <option value="10h">10 ساعات</option>
+                <option value="1d">يوم</option>
+                <option value="3d">3 أيام</option>
+                <option value="1w">أسبوع</option>
+                <option value="3w">3 أسابيع</option>
+                <option value="1M">شهر</option>
+                <option value="3M">3 أشهر</option>
+                <option value="7M">7 أشهر</option>
+                <option value="1y">سنة</option>
+            </select>
+        </div>
+        <button id="searchBtn">بحث ومنح التوثيق</button>
+        <div id="statusMsg" style="margin-top:10px; font-size:13px;"></div>
+        <div class="user-frame" id="userFrame">
+            <img src="" id="frameImg">
+            <div class="user-info">
+                <h4 id="frameName"></h4>
+                <p id="frameEmail" style="margin:0; font-size:12px; color:#bbb;"></p>
+            </div>
+            <i class="fa-solid fa-circle-check verify-badge"></i>
+        </div>
+    </div>
+
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <i class="fa-solid fa-times" style="position:absolute; top:20px; left:20px; cursor:pointer;" onclick="closeModal()"></i>
+            <img src="" id="modalImg">
+            <h3 id="modalName"></h3>
+            <p id="modalEmail" style="font-size:13px; color:#888;"></p>
+            <div class="stat-box">
+                <div class="stat-item"><span id="followersCount">0</span><label>متابع</label></div>
+                <div class="stat-item"><span id="postsCount">0</span><label>منشور</label></div>
+            </div>
+            <button class="btn-remove" id="removeVerifyBtn">إزالة شارة التوثيق</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyDj1jWQZHnELXe_eFkfGpi3F3_jPGhPm7I", authDomain: "one1-95c0e.firebaseapp.com", projectId: "one1-95c0e", appId: "1:1090900617422:web:f6e9c11bb7a090c39ec89f" };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        let currentUserId = null;
+
+        document.getElementById('searchBtn').onclick = async () => {
+            const email = document.getElementById('userEmail').value.trim();
+            if(!email) return;
+            const q = query(collection(db, "users"), where("email", "==", email));
+            const snap = await getDocs(q);
+            if(snap.empty) { document.getElementById('statusMsg').innerText="غير موجود"; return; }
+            snap.forEach(async (uDoc) => {
+                currentUserId = uDoc.id;
+                const d = uDoc.data();
+                await updateDoc(doc(db, "users", uDoc.id), { isVerified: true, verifyDuration: document.getElementById('duration').value });
+                document.getElementById('frameImg').src = d.photo || 'https://via.placeholder.com/50';
+                document.getElementById('frameName').innerText = d.name;
+                document.getElementById('frameEmail').innerText = d.email;
+                document.getElementById('userFrame').style.display = 'flex';
+            });
+        };
+
+        document.getElementById('userFrame').onclick = () => document.getElementById('userModal').style.display='flex';
+        window.closeModal = () => document.getElementById('userModal').style.display='none';
+        document.getElementById('removeVerifyBtn').onclick = async () => {
+            if(currentUserId) { await updateDoc(doc(db, "users", currentUserId), { isVerified: false }); location.reload(); }
+        };
+    </script>
+</body>
+</html>

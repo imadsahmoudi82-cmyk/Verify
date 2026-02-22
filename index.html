@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة توثيق ONE 1</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        :root { --primary: #6c5ce7; --bg: #0f0c29; --card-bg: rgba(255, 255, 255, 0.05); }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; color: white; padding: 20px; box-sizing: border-box; }
+        
+        #lockScreen { position: fixed; inset: 0; background: var(--bg); z-index: 10000; display: flex; align-items: center; justify-content: center; }
+        .admin-card { background: var(--card-bg); backdrop-filter: blur(15px); padding: 30px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 450px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5); position: relative; }
+        
+        h2 { color: #a29bfe; margin-bottom: 20px; font-size: 22px; }
+        .input-group { margin-bottom: 15px; text-align: right; }
+        label { display: block; margin-bottom: 8px; font-size: 13px; color: #aaa; }
+        input { width: 100%; padding: 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(162, 155, 254, 0.3); border-radius: 12px; outline: none; color: white; font-size: 15px; box-sizing: border-box; transition: 0.3s; }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(108, 92, 231, 0.3); }
+        
+        button { width: 100%; background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:active { transform: scale(0.98); }
+
+        /* قائمة الموثقين */
+        .verified-list { margin-top: 30px; text-align: right; max-height: 350px; overflow-y: auto; padding-left: 5px; }
+        .verified-list::-webkit-scrollbar { width: 5px; }
+        .verified-list::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+        
+        .user-frame { background: rgba(255, 255, 255, 0.08); border-radius: 15px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(162, 155, 254, 0.1); animation: fadeIn 0.4s ease; }
+        .user-frame img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--primary); }
+        .user-info { flex: 1; }
+        .user-info h4 { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+        .user-info p { margin: 0; font-size: 11px; color: #bbb; }
+        
+        .remove-btn { color: #ff4757; cursor: pointer; font-size: 18px; transition: 0.3s; opacity: 0.7; }
+        .remove-btn:hover { opacity: 1; transform: rotate(90deg); }
+
+        /* نافذة التأكيد المخصصة */
+        #confirmModal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 20000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal-content { background: #1a1645; padding: 25px; border-radius: 20px; border: 1px solid #ff4757; text-align: center; width: 90%; max-width: 320px; }
+        .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-no { background: #444; }
+        .btn-yes { background: #ff4757; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        #mainContent { display: none; width: 100%; max-width: 450px; }
+    </style>
+</head>
+<body>
+
+    <div id="confirmModal">
+        <div class="modal-content">
+            <i class="fa-solid fa-circle-exclamation" style="font-size: 40px; color: #ff4757; margin-bottom: 15px;"></i>
+            <p id="modalText">هل أنت متأكد؟</p>
+            <div class="modal-btns">
+                <button class="btn-no" onclick="closeModal()">إلغاء</button>
+                <button class="btn-yes" id="confirmAction">تأكيد الإزالة</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="lockScreen">
+        <div class="admin-card">
+            <h2>رمز الدخول</h2>
+            <input type="password" id="accessCode" placeholder="••••••••" style="text-align: center; letter-spacing: 5px; margin-bottom: 15px;">
+            <button id="unlockBtn">دخول للمنصة</button>
+        </div>
+    </div>
+
+    <div id="mainContent">
+        <div class="admin-card">
+            <h2 style="display:flex; align-items:center; justify-content:center; gap:10px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/10629/10629607.png" width="30">
+                منصة التوثيق
+            </h2>
+            <div class="input-group">
+                <input type="email" id="userEmail" placeholder="أدخل بريد المستخدم لتوثيقه">
+            </div>
+            <button id="verifyBtn">منح التوثيق <i class="fa-solid fa-certificate"></i></button>
+            <div id="statusMsg" style="margin-top: 15px; font-size: 13px; min-height: 20px;"></div>
+
+            <div class="verified-list">
+                <h3 style="font-size: 15px; color: #a29bfe; margin-bottom: 15px; display: flex; justify-content: space-between;">
+                    الموثقون حالياً <span id="userCount" style="font-size:12px; opacity:0.6;">0</span>
+                </h3>
+                <div id="listContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, query, where, getDocs, updateDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDj1jWQZHnELXe_eFkfGpi3F3_jPGhPm7I", 
+            authDomain: "one1-95c0e.firebaseapp.com", 
+            projectId: "one1-95c0e", 
+            appId: "1:1090900617422:web:f6e9c11bb7a090c39ec89f" 
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let pendingDeleteId = null;
+
+        document.getElementById('unlockBtn').onclick = async () => {
+            if (document.getElementById('accessCode').value === "86948694") {
+                await signInAnonymously(auth);
+                document.getElementById('lockScreen').style.display = "none";
+                document.getElementById('mainContent').style.display = "block";
+                loadVerifiedUsers();
+            }
+        };
+
+        function loadVerifiedUsers() {
+            const q = query(collection(db, "users"), where("isVerified", "==", true));
+            onSnapshot(q, (snap) => {
+                const container = document.getElementById('listContainer');
+                container.innerHTML = "";
+                document.getElementById('userCount').innerText = snap.size;
+                snap.forEach((uDoc) => {
+                    const data = uDoc.data();
+                    container.innerHTML += `
+                        <div class="user-frame">
+                            <img src="${data.photo || 'https://ui-avatars.com/api/?background=6c5ce7&color=fff&name='+data.name}">
+                            <div class="user-info">
+                                <h4>${data.name} <i class="fa-solid fa-patch-check" style="color:#6c5ce7"></i></h4>
+                                <p>${data.email}</p>
+                            </div>
+                            <i class="fa-solid fa-circle-xmark remove-btn" onclick="openConfirmModal('${uDoc.id}', '${data.name}')"></i>
+                        </div>`;
+                });
+            });
+        }
+
+        document.getElementById('verifyBtn').onclick = async () => {
+            const email = document.getElementById('userEmail').value.trim().toLowerCase();
+            const status = document.getElementById('statusMsg');
+            if(!email) return;
+
+            status.innerText = "جاري البحث...";
+            try {
+                const q = query(collection(db, "users"), where("email", "==", email));
+                const snap = await getDocs(q);
+                if(snap.empty) {
+                    showStatus("هذا البريد غير مسجل في التطبيق", "#ff4757");
+                } else {
+                    await updateDoc(doc(db, "users", snap.docs[0].id), { isVerified: true });
+                    showStatus("تم منح التوثيق للمستخدم بنجاح ✅", "#2ecc71");
+                    document.getElementById('userEmail').value = "";
+                }
+            } catch (e) { showStatus("خطأ في الاتصال بقاعدة البيانات", "#ff4757"); }
+        };
+
+        function showStatus(text, color) {
+            const s = document.getElementById('statusMsg');
+            s.innerText = text;
+            s.style.color = color;
+            setTimeout(() => { s.innerText = ""; }, 3000);
+        }
+
+        window.openConfirmModal = (id, name) => {
+            pendingDeleteId = id;
+            document.getElementById('modalText').innerText = `إزالة التوثيق عن ${name}؟`;
+            document.getElementById('confirmModal').style.display = "flex";
+        };
+
+        window.closeModal = () => {
+            document.getElementById('confirmModal').style.display = "none";
+            pendingDeleteId = null;
+        };
+
+        document.getElementById('confirmAction').onclick = async () => {
+            if(pendingDeleteId) {
+                await updateDoc(doc(db, "users", pendingDeleteId), { isVerified: false });
+                closeModal();
+                showStatus("تمت إزالة التوثيق", "#a29bfe");
+            }
+        };
+    </script>
+</body>
+</html>
